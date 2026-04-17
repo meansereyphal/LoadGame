@@ -1,220 +1,114 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import supabaseClient from "@/lib/supabase";
 
 export default function Home() {
-  const [pollData, setPollData] = useState<any>(null);
+  const [pollData, setPollData] = useState(null);
   const [currentId, setCurrentId] = useState(1);
-  const [highestId, setHighestId] = useState<number | null>(null);
-  const [curErr, setCurErr] = useState<any[]>([]);
-  const [isChoosing, setIsChoosing] = useState(false);
-  const [option1Votes, setOption1Votes] = useState(0);
-  const [option2Votes, setOption2Votes] = useState(0);
-  const [isCreating, setIsCreating] = useState(false);
-  const [createErr, setCreateErr] = useState<any>(null);
+  const [highestId, setHighestId] = useState(null);
+  const [curErr, setCurErr] = useState([]);
+  const [isChossing, setIsChoosing] = useState(false);
+  const [option1, setOption1] = useState(0)
+  const [option2, setOption2] = useState(0)
+  const [isCreateing, setIsCreating] = useState(false)
+  const [createErr, setCreateErr] = useState({})
 
-  const [input1, setInput1] = useState("");
-  const [input2, setInput2] = useState("");
+  const [input1, setInput1] = useState("")
+  const [input2, setInput2] = useState("")
 
-  // 1. Monitor the total number of polls (runs every 10s)
   useEffect(() => {
-    async function getHighestId() {
-      const { data, error } = await supabaseClient
-        .from("polls")
-        .select("id")
-        .order("id", { ascending: false })
-        .limit(1)
-        .single();
+    setCurErr([])
+    async function getInfo() {
+      setInterval(async () => {
+        const { data, error: errorId } = await supabaseClient.from("polls").select("id").limit(1).order("id", { ascending: false }).single();
+        if (errorId) setCurErr(prev => [...prev, errorId] )
+        if (data) setHighestId(data.id);
+      }, 10000)
       
-      if (error) {
-        console.error("Error fetching max ID:", error);
-      } else if (data) {
-        setHighestId(data.id);
-      }
+      const { data: poll, error} = await supabaseClient.from("polls").select("*").eq("id", currentId).single();
+      if (error) return setCurErr(prev => [...prev, error] )
+      setPollData(poll);
+      setOption1(poll.num1)
+      setOption2(poll.num2)
     }
-
-    getHighestId();
-    const interval = setInterval(getHighestId, 10000);
-    return () => clearInterval(interval);
+    getInfo();
   }, []);
 
-  // 2. Fetch specific poll data whenever currentId changes
-  useEffect(() => {
-    async function fetchCurrentPoll() {
-      const { data, error } = await supabaseClient
-        .from("polls")
-        .select("*")
-        .eq("id", currentId)
-        .single();
 
-      if (error) {
-        setCurErr((prev) => [...prev, error]);
-      } else {
-        setPollData(data);
-        setOption1Votes(data.num1 || 0);
-        setOption2Votes(data.num2 || 0);
-      }
-    }
-    fetchCurrentPoll();
-  }, [currentId]);
-
-  const handleVote = async (pollId: number, option: number) => {
-    if (isChoosing) return;
-    setIsChoosing(true);
-
+  const handleVote = async (pollId, option) => {
     try {
-      // 1. Register Vote
-      const { error } = await supabaseClient.rpc("updatevotes", { 
-        op: option, 
-        row_id: pollId 
-      });
+      setIsChoosing(true);
+      if (!pollId || !option) return setCurErr(prev => [...prev, { message: "Invalid poll ID or option" }]);
+      const { data, error } = await supabaseClient.rpc("updatevotes", { op: option, row_id: pollId });
 
-      if (error) throw error;
-
-      // 2. Show results for 2 seconds
+      if (error) return setCurErr(prev => [...prev, error]);
+      let nextId = null
+      while ((nextId === currentId || !nextId) && highestId > 1) {
+        nextId = Math.floor(Math.random() * (highestId - 1)) + 1
+      }
+      const { data: poll, error: pollError } = await supabaseClient.from("polls").select("*").eq("id", nextId).single();
+      setCurrentId(nextId)
+      
+      if (pollError) return setCurErr(prev => [...prev, pollError]);
       setTimeout(() => {
-        // 3. Pick a new random ID
-        if (highestId && highestId > 1) {
-          let nextId = currentId;
-          // Safety loop to find a different ID
-          for (let i = 0; i < 5; i++) {
-            const random = Math.floor(Math.random() * highestId) + 1;
-            if (random !== currentId) {
-              nextId = random;
-              break;
-            }
-          }
-          setCurrentId(nextId);
-        }
-        setIsChoosing(false);
+        setPollData(poll);
+        setOption1(poll.num1)
+        setOption2(poll.num2)
       }, 2000);
-
-    } catch (err: any) {
-      setCurErr((prev) => [...prev, err]);
-      setIsChoosing(false);
+    } finally {
+      setTimeout(() => setIsChoosing(false), 2000);
     }
-  };
-
-  const handleCreate = async () => {
-    if (!input1 || !input2) return;
-    
-    const { data, error } = await supabaseClient
-      .from("polls")
-      .insert({ option1: input1, option2: input2, num1: 0, num2: 0 })
-      .select()
-      .single();
-
-    if (error) {
-      setCreateErr(error);
-    } else {
-      setCurrentId(data.id);
-      setInput1("");
-      setInput2("");
-      setIsCreating(false);
-      setCreateErr(null);
-    }
-  };
-
-  const totalVotes = option1Votes + option2Votes;
+  }
 
   return (
-    <main className="relative flex flex-col items-center justify-center w-screen h-screen overflow-hidden bg-gray-900 text-white">
-      <h1 className="text-5xl font-black mt-12 mb-auto uppercase tracking-tighter italic">
-        Would You Rather
-      </h1>
-
+    <main className="flex w-screen h-screen items-center justify-center flex-col">
+      <h1 className="text-4xl font-bold mb-auto pt-20">Would You Rather</h1>
       {pollData && (
-        <div className="flex absolute inset-0 items-center justify-center gap-4 px-4 md:gap-8 lg:gap-12 h-full">
-          {/* Option 1 */}
-          <div className="relative group w-1/2 h-2/3 md:h-1/2">
-            <button
-              onClick={() => handleVote(pollData.id, 1)}
-              disabled={isChoosing}
-              className="w-full h-full bg-red-600 hover:bg-red-500 transition-all rounded-2xl flex flex-col items-center justify-center p-6 disabled:opacity-80"
-            >
-              <span className="text-2xl md:text-4xl lg:text-5xl font-bold uppercase text-center">
-                {pollData.option1}
-              </span>
-              {isChoosing && (
-                <p className="mt-4 text-xl md:text-2xl font-mono">
-                  {((option1Votes / (totalVotes || 1)) * 100).toFixed(1)}%
-                </p>
-              )}
-            </button>
+        <div className="flex absolute w-screen items-center justify-center h-full gap-2 md:gap-8 lg:gap-16">
+          <div className="option1 bg-red-700 w-4/9 h-1/2 rounded-lg flex flex-col items-center justify-center">
+            <button className="text-2xl md:text-4xl lg:text-6xl cursor-pointer text-white w-full h-full" onClick={() => handleVote(pollData.id, 1)} disabled={isChossing}>{pollData.option1.toUpperCase()}</button>
+            <p className="text-white lg:text-2xl">{isChossing &&  (option1 + option2 != 0) && `${option1} votes or ${ (option1 / (option1 + option2) * 100).toFixed(2)}%`}</p>
           </div>
-
-          {/* Option 2 */}
-          <div className="relative group w-1/2 h-2/3 md:h-1/2">
-            <button
-              onClick={() => handleVote(pollData.id, 2)}
-              disabled={isChoosing}
-              className="w-full h-full bg-blue-600 hover:bg-blue-500 transition-all rounded-2xl flex flex-col items-center justify-center p-6 disabled:opacity-80"
-            >
-              <span className="text-2xl md:text-4xl lg:text-5xl font-bold uppercase text-center">
-                {pollData.option2}
-              </span>
-              {isChoosing && (
-                <p className="mt-4 text-xl md:text-2xl font-mono">
-                  {((option2Votes / (totalVotes || 1)) * 100).toFixed(1)}%
-                </p>
-              )}
-            </button>
+          <div className="option2 bg-blue-700 w-4/9 h-1/2 rounded-lg flex flex-col items-center justify-center">
+            <button className="text-2xl md:text-4xl lg:text-6xl cursor-pointer text-white w-full h-full" onClick={() => handleVote(pollData.id, 2)} disabled={isChossing}>{pollData.option2.toUpperCase()}</button>
+            <p className="text-white lg:text-2xl">{isChossing && (option1 + option2 !== 0) && `${option2} votes or ${(option2 / (option1 + option2) * 100).toFixed(2)}%`}</p>
           </div>
         </div>
       )}
-
-      {/* Footer Actions */}
-      <div className="pb-20 z-10">
-        <button
-          className="px-8 py-3 bg-white text-black font-bold rounded-full hover:scale-105 transition-transform"
-          onClick={() => setIsCreating(true)}
-        >
-          SUBMIT YOUR OWN
-        </button>
+      <div className="z-9999 relative pb-20">
+        <button className="text-2xl bg-gray-500 p-4 rounded-md text-white cursor-pointer" onClick={() => setIsCreating(true)}>Create</button>
       </div>
-
-      {/* Create Modal */}
-      {isCreating && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-white text-black w-full max-w-md p-8 rounded-3xl flex flex-col gap-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-black uppercase">Create a Poll</h2>
-              <button onClick={() => setIsCreating(false)} className="text-2xl font-bold">✕</button>
-            </div>
-            
-            <input
-              value={input1}
-              onChange={(e) => setInput1(e.target.value.toUpperCase())}
-              placeholder="OPTION 1"
-              className="border-2 border-gray-200 rounded-xl p-4 text-lg focus:border-red-500 outline-none transition-colors"
-            />
-            <input
-              value={input2}
-              onChange={(e) => setInput2(e.target.value.toUpperCase())}
-              placeholder="OPTION 2"
-              className="border-2 border-gray-200 rounded-xl p-4 text-lg focus:border-blue-500 outline-none transition-colors"
-            />
-
-            {createErr && <p className="text-red-500 text-sm">{createErr.message}</p>}
-
-            <button
-              onClick={handleCreate}
-              className="bg-black text-white py-4 rounded-xl font-bold hover:bg-gray-800 transition-colors"
-            >
-              PUBLISH POLL
-            </button>
+      <div className={`${isCreateing ? "flex" : "hidden"} create absolute w-100 h-fit pt-10 pb-20 bg-white border-black border-2 rounded-lg flex items-center justify-center flex-col gap-4`} style={{ display: isCreateing ? "flex" : "none" }}>
+        <button className="text-4xl cursor-pointer" onClick={() => setIsCreating(false)} id="close">X</button>
+        <h2 className="text-2xl font-bold">Create Polls</h2>
+        <input value={input1} onChange={(e) => setInput1(e.target.value.toUpperCase())} type="text" placeholder="Option 1" className="border-2 border-gray-500 rounded-md p-2" id="option1Input" required />
+        <input value={input2} onChange={(e) => setInput2(e.target.value.toUpperCase())} type="text" placeholder="Option 2" className="border-2 border-gray-500 rounded-md p-2" id="option2Input" required />
+        {createErr && (
+          <div className="absolute bottom-0 w-full pb-4">
+            <p className="text-red-500 text-center">{createErr.message}</p>
           </div>
+        )}
+        <button className="text-white bg-green-500 p-2 rounded-md cursor-pointer" onClick={async () => {
+          const option1 = input1
+          const option2 = input2
+          const {data, error} = await supabaseClient.from("polls").insert({ option1, option2 }).select().single();
+          if (error) return setCreateErr(error);
+          setCurrentId(data.id)
+          setPollData(data);
+          setOption1(0)
+          setOption2(0)
+          setIsCreating(false);
+          }
+
+        }>Create</button>
+      </div>
+      {curErr.length > 0 && (
+        <div className="absolute bottom-0 w-screen p-4">
+          {curErr && curErr.map((err, index) => (
+            <p key={index} className="text-red-500 text-center">{err?.message}</p>
+          ))}
         </div>
       )}
-
-      {/* Error Toasts */}
-      <div className="fixed bottom-4 left-4 flex flex-col gap-2">
-        {curErr.slice(-3).map((err, i) => (
-          <div key={i} className="bg-red-500 text-white px-4 py-2 rounded-lg text-sm shadow-lg">
-            {err.message}
-          </div>
-        ))}
-      </div>
     </main>
   );
 }
