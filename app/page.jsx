@@ -5,7 +5,7 @@ import supabaseClient from "@/lib/supabase";
 export default function Home() {
   const [pollData, setPollData] = useState(null);
   const [currentId, setCurrentId] = useState(1);
-  const [highestId, setHighestId] = useState(null);
+  const [highestId, setHighestId] = useState(10);
   const [curErr, setCurErr] = useState([]);
   const [isChossing, setIsChoosing] = useState(false);
   const [option1, setOption1] = useState(0)
@@ -19,6 +19,11 @@ export default function Home() {
   useEffect(() => {
     setCurErr([])
     async function getInfo() {
+      let nextId = 0
+      while (nextdId !== currentId) {
+        nextId = Math.floor(Math.random() * (highestId - 1)) + 1
+      }
+      setCurrentId(nextId)
       setInterval(async () => {
         const { data, error: errorId } = await supabaseClient.from("polls").select("id").limit(1).order("id", { ascending: false }).single();
         if (errorId) setCurErr(prev => [...prev, errorId] )
