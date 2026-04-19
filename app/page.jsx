@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import supabaseClient from "@/lib/supabase";
+import ToggleSwitch from "@/components/switch";
+import { speak } from "../function/voiceover"; // Import getAiVoice from "@/app/api/fetchVoice/route";
 
 export default function Home() {
   const [pollData, setPollData] = useState(null);
@@ -15,16 +17,29 @@ export default function Home() {
 
   const [input1, setInput1] = useState("")
   const [input2, setInput2] = useState("")
+  const [isVoiceOn, setIsVoiceOn] = useState(false)
+
+  const speakPoll = async (poll) => {
+    if (!isVoiceOn || !poll) return;
+    
+    const text = `Would you rather: ${poll.option1}, or, ${poll.option2}?`;
+    await speak(text);
+  };
+
+  useEffect(() => {
+    if (pollData && isVoiceOn) {
+      setIsChoosing(true);
+      speakPoll(pollData);
+      setIsChoosing(false);
+    }
+  }, [pollData, isVoiceOn]);
 
   useEffect(() => {
     setCurErr([])
     async function getInfo() {
-      let nextId = 0
-      while (nextdId !== currentId) {
-        nextId = Math.floor(Math.random() * (highestId - 1)) + 1
-      }
+      let nextId = Math.floor(Math.random() * (highestId - 1)) + 1
       setCurrentId(nextId)
-      setInterval(async () => {
+      const getHighestId = setInterval(async () => {
         const { data, error: errorId } = await supabaseClient.from("polls").select("id").limit(1).order("id", { ascending: false }).single();
         if (errorId) setCurErr(prev => [...prev, errorId] )
         if (data) setHighestId(data.id);
@@ -35,6 +50,9 @@ export default function Home() {
       setPollData(poll);
       setOption1(poll.num1)
       setOption2(poll.num2)
+      setIsChoosing(true)
+      speakPoll(`Would you rather: ${poll.option1}, or, ${poll.option2}?`);
+      setIsChoosing(false)
     }
     getInfo();
   }, []);
@@ -55,6 +73,8 @@ export default function Home() {
       setCurrentId(nextId)
       
       if (pollError) return setCurErr(prev => [...prev, pollError]);
+
+      
       setTimeout(() => {
         setPollData(poll);
         setOption1(poll.num1)
@@ -68,6 +88,7 @@ export default function Home() {
   return (
     <main className="flex w-screen h-screen items-center justify-center flex-col">
       <h1 className="text-4xl font-bold mb-auto pt-20">Would You Rather</h1>
+      <ToggleSwitch label="VOICE OVER" onToggle={setIsVoiceOn} />
       {pollData && (
         <div className="flex absolute w-screen items-center justify-center h-full gap-2 md:gap-8 lg:gap-16">
           <div className="option1 bg-red-700 w-4/9 h-1/2 rounded-lg flex flex-col items-center justify-center">
@@ -80,7 +101,7 @@ export default function Home() {
           </div>
         </div>
       )}
-      <div className="z-9999 relative pb-20">
+      <div className="z-9999 relative pb-10">
         <button className="text-2xl bg-gray-500 p-4 rounded-md text-white cursor-pointer" onClick={() => setIsCreating(true)}>Create</button>
       </div>
       <div className={`${isCreateing ? "flex" : "hidden"} create absolute w-100 h-fit pt-10 pb-20 bg-white border-black border-2 rounded-lg flex items-center justify-center flex-col gap-4`} style={{ display: isCreateing ? "flex" : "none" }}>
@@ -114,6 +135,7 @@ export default function Home() {
           ))}
         </div>
       )}
+      <p className="text-white bg-yellow-600 w-screen text-center font-bold p-2">WARNING: IF YOU ENABLE VOICE OVER, PLEASE BE CAUTION AS THE SOUND MAY BE TOO LOUD.</p>
     </main>
   );
 }
