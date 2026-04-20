@@ -102,7 +102,7 @@ export default function Home() {
         </div>
       )}
       <div className="z-9999 relative pb-10">
-        <button className="text-2xl bg-gray-500 p-4 rounded-md text-white cursor-pointer" onClick={() => setIsCreating(true)}>Create</button>
+        <button className="text-3xl bg-gray-500 p-4 rounded-md text-white cursor-pointer" onClick={() => setIsCreating(true)}>Create</button>
       </div>
       <div className={`${isCreateing ? "flex" : "hidden"} create absolute w-100 h-fit pt-10 pb-20 bg-white border-black border-2 rounded-lg flex items-center justify-center flex-col gap-4`} style={{ display: isCreateing ? "flex" : "none" }}>
         <button className="text-4xl cursor-pointer" onClick={() => setIsCreating(false)} id="close">X</button>

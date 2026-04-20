@@ -1,11 +1,13 @@
 'use client'
 import { useState } from 'react';
-import { speak } from "@/function/voiceover"; // Import the speak function from the API route
+import { speak } from "@/function/voiceover";
+import { IoMdSettings } from "react-icons/io";
 
 export default function ToggleSwitch({ label = "Settings", onToggle }) {
   const [isOn, setIsOn] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState("umbriel")
   const voiceOption = ["MALE", "FEMALE"]
+  const [isOpen , setIsOpen] = useState(false);
 
   const handleToggle = () => {
     const newState = !isOn;
@@ -20,37 +22,41 @@ export default function ToggleSwitch({ label = "Settings", onToggle }) {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center p-4 bg-white border border-gray-200 rounded-xl shadow-sm w-full max-w-xs absolute z-10 top-4 right-4">
-      <div className="flex justify-between items-center w-full">
-        <span className="text-sm font-semibold text-gray-700">AI VOICE <span className="text-red-500 text-[12px]">*COMING SOON*</span></span>
-        
-        <button
-          onClick={handleToggle}
-          disabled
-          aria-checked={isOn}
-          role="switch"
-          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 ${
-            isOn ? 'bg-blue-600' : 'bg-gray-400'
-          }`}
-        >
-          <span
-            aria-hidden="true"
-            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-              isOn ? 'translate-x-5' : 'translate-x-0'
+    <div className="h-screen w-screen absolute top-0 left-0 flex items-start justify-end p-4 ">
+      <IoMdSettings className={`text-4xl cursor-pointer relative z-9999999 lg:hidden ${isOpen ? 'hidden' : 'block'}`} onClick={() => setIsOpen(prev => !prev)} />
+      <div className={`${isOpen ? 'flex flex-col' : 'hidden'} lg:flex lg:flex-col items-center justify-center p-4 bg-white border border-gray-200 rounded-xl shadow-sm w-full max-w-xs absolute z-10 top-4 right-4`}>
+        <div className="text-md font-semibold text-gray-700 mb-2 cursor-pointer" onClick={() => setIsOpen(false)}>CLOSE</div>
+        <div className="flex justify-between items-center w-full">
+          <span className="text-sm font-semibold text-gray-700">AI VOICE <span className="text-red-500 text-[12px]">*COMING SOON*</span></span>
+          
+          <button
+            onClick={handleToggle}
+            disabled
+            aria-checked={isOn}
+            role="switch"
+            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 ${
+              isOn ? 'bg-blue-600' : 'bg-gray-400'
             }`}
-          />
-        </button>
+          >
+            <span
+              aria-hidden="true"
+              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                isOn ? 'translate-x-5' : 'translate-x-0'
+              }`}
+            />
+          </button>
+        </div>
+        
+        <div className="voice flex items-center justify-between w-full mt-4">
+          <span className="text-sm font-semibold text-gray-700">VOICE</span>
+          <select className="border-2 border-gray-200 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block  p-2" value={selectedVoice} onChange={handleChnge}>
+            {voiceOption.map((voice) => (
+              <option key={voice} value={voice}>{voice.toUpperCase()}</option>
+            ))}
+          </select>
+        </div>
+        
       </div>
-      
-      <div className="voice flex items-center justify-between w-full mt-4">
-        <span className="text-sm font-semibold text-gray-700">VOICE</span>
-        <select className="border-2 border-gray-200 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block  p-2" value={selectedVoice} onChange={handleChnge}>
-          {voiceOption.map((voice) => (
-            <option key={voice} value={voice}>{voice.toUpperCase()}</option>
-          ))}
-        </select>
-      </div>
-      
     </div>
   );
 }
