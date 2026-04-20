@@ -10,7 +10,7 @@ export async function speak(text, voice, isOn) {
   let pingInterval = null;
 
   const config = {
-    model: 'gemini-3.1-flash-live-preview',
+    model: 'gemini-2.5-flash-native-audio-preview-12-2025',
     config: { response_modalities: ["AUDIO"] }
   };
 
@@ -41,6 +41,10 @@ export async function speak(text, voice, isOn) {
   }
 
   const session = await ai.live.connect(config);
+
+  if (session) {
+    console.log("Session established with Gemini API");
+  }
 
   session.on('message', (msg) => {
     if (msg.type === 'output_audio') {
